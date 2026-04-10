@@ -1,0 +1,366 @@
+.container {
+  max-width: 860px;
+  margin: 40px auto 72px;
+  padding: 0 20px;
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: 22px;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #4b8092;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 6px 0 2px;
+  font-size: clamp(2.3rem, 6vw, 3.2rem);
+  color: #103042;
+  letter-spacing: -0.03em;
+}
+
+.subtitle {
+  margin: 0;
+  color: #4d6a7a;
+}
+
+.pet-stage {
+  margin: 20px 0 10px;
+  padding: 20px;
+  border: 1px solid #d1ebef;
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 22px;
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 18px;
+  align-items: center;
+  box-shadow: 0 14px 34px rgba(16, 65, 92, 0.09);
+}
+
+.pet-orb-track {
+  display: flex;
+  justify-content: center;
+  transition: transform 0.35s ease;
+}
+
+.pet-stage.distance-near .pet-orb-track {
+  transform: translateX(12px);
+}
+
+.pet-stage.distance-center .pet-orb-track {
+  transform: translateX(0);
+}
+
+.pet-stage.distance-close .pet-orb-track {
+  transform: translateX(24px);
+}
+
+.pet-orb {
+  width: 150px;
+  height: 150px;
+  margin: 0 auto;
+  border-radius: 999px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  animation:
+    drift 4.2s ease-in-out infinite,
+    breathe 3s ease-in-out infinite;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: inset 0 10px 30px rgba(255, 255, 255, 0.35);
+}
+
+.pet-orb::before {
+  content: "";
+  position: absolute;
+  width: 52px;
+  height: 32px;
+  top: 24px;
+  left: 28px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.5);
+  transform: rotate(-22deg);
+}
+
+.mood-great {
+  background: radial-gradient(circle at 30% 25%, #c7fff2, #79dcc8 68%);
+}
+
+.mood-good {
+  background: radial-gradient(circle at 30% 25%, #d2fff3, #76d4e4 68%);
+}
+
+.mood-okay {
+  background: radial-gradient(circle at 30% 25%, #d9f5ff, #8ab5f6 68%);
+}
+
+.mood-down {
+  background: radial-gradient(circle at 30% 25%, #e2e9ff, #9aa8dd 68%);
+}
+
+.mood-stressed {
+  background: radial-gradient(circle at 30% 25%, #ffe7d4, #f4a786 68%);
+}
+
+.pet-face {
+  position: relative;
+  width: 54px;
+  height: 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.pet-face .eye {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #0b3c51;
+  transition:
+    transform 0.2s ease,
+    height 0.2s ease,
+    width 0.2s ease;
+}
+
+.pet-face .mouth {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
+  width: 20px;
+  height: 10px;
+  border-bottom: 3px solid #0b3c51;
+  border-radius: 0 0 999px 999px;
+  transition: all 0.25s ease;
+}
+
+.face-joy .mouth {
+  width: 22px;
+  height: 12px;
+  border-bottom-width: 4px;
+}
+
+.face-soft-smile .mouth {
+  width: 19px;
+  height: 10px;
+}
+
+.face-neutral .mouth {
+  width: 14px;
+  height: 0;
+  border-bottom-width: 3px;
+  border-radius: 0;
+}
+
+.face-sad .mouth {
+  width: 18px;
+  height: 11px;
+  border-bottom: 0;
+  border-top: 3px solid #0b3c51;
+  border-radius: 999px 999px 0 0;
+}
+
+.face-anxious .eye {
+  width: 10px;
+  height: 6px;
+}
+
+.face-anxious .eye.left {
+  transform: rotate(14deg);
+}
+
+.face-anxious .eye.right {
+  transform: rotate(-14deg);
+}
+
+.face-anxious .mouth {
+  width: 14px;
+  height: 8px;
+  border-bottom-width: 2px;
+  border-radius: 0 0 3px 3px;
+}
+
+.pet-bubble {
+  border: 1px solid #cbe6ec;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(247, 254, 255, 0.95);
+  color: #335369;
+}
+
+.pet-bubble p {
+  margin: 0;
+}
+
+.pet-bubble-label {
+  color: #4f7d93;
+  font-weight: 700;
+  font-size: 0.84rem;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.checkin-form,
+.history {
+  margin-top: 24px;
+  padding: 22px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid #d2edf0;
+  border-radius: 18px;
+  text-align: left;
+  box-shadow: 0 14px 34px rgba(16, 65, 92, 0.1);
+}
+
+.checkin-form h2,
+.history h2 {
+  margin-top: 0;
+  color: #18384d;
+}
+
+.checkin-form label {
+  display: block;
+  margin: 12px 0 6px;
+  font-weight: 600;
+  color: #27495c;
+}
+
+.checkin-form select,
+.checkin-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 12px;
+  border: 1px solid #b8dae3;
+  background: #f9feff;
+  color: #1f3c4f;
+  padding: 11px 12px;
+  font: inherit;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.checkin-form select:focus,
+.checkin-form textarea:focus {
+  outline: none;
+  border-color: #66b9be;
+  box-shadow: 0 0 0 3px rgba(97, 197, 201, 0.2);
+}
+
+.checkin-form button {
+  margin-top: 14px;
+  border: 1px solid #57b9b4;
+  border-radius: 12px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #6ed1c2, #7caef1);
+  color: #0d3148;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    filter 0.2s ease;
+}
+
+.checkin-form button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+.checkin-form button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.form-message {
+  margin: 10px 0 0;
+  color: #29556d;
+}
+
+.history ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.history li {
+  padding: 12px 0;
+  border-top: 1px dashed #c3e3e8;
+}
+
+.history li:first-child {
+  border-top: 0;
+}
+
+.history-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.history-head span {
+  color: #6f8b9a;
+  font-size: 0.9rem;
+}
+
+.history p {
+  margin: 8px 0 0;
+  color: #335369;
+}
+
+.mood-pill {
+  display: inline-block;
+  text-transform: capitalize;
+  font-weight: 700;
+  color: #155670;
+  background: #e3f7fb;
+  border: 1px solid #b8e2ec;
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.error-text {
+  color: #c85252;
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 10px 30px rgba(255, 255, 255, 0.35),
+      0 0 0 6px rgba(98, 193, 208, 0.12);
+  }
+  50% {
+    box-shadow:
+      inset 0 14px 36px rgba(255, 255, 255, 0.45),
+      0 0 0 12px rgba(98, 193, 208, 0.08);
+  }
+}
+
+@media (max-width: 760px) {
+  .pet-stage {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .pet-stage.distance-near .pet-orb-track,
+  .pet-stage.distance-center .pet-orb-track,
+  .pet-stage.distance-close .pet-orb-track {
+    transform: translateX(0);
+  }
+}
