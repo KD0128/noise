@@ -128,11 +128,22 @@ app.get("/api/moods", async (req, res) => {
   }
 
   const requestedLimit = Number(req.query.limit);
+  const requestedPage = Number(req.query.page);
   const limit = Number.isFinite(requestedLimit)
     ? Math.min(Math.max(requestedLimit, 1), 50)
-    : 20;
+    : 10;
+  const page = Number.isFinite(requestedPage)
+    ? Math.max(Math.floor(requestedPage), 1)
+    : 1;
+  const offset = (page - 1) * limit;
 
   try {
+    const countRow = db
+      .prepare("SELECT COUNT(*) AS total FROM mood_checkins")
+      .get();
+    const total = Number(countRow.total || 0);
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
     const statement = db.prepare(`
       SELECT
         id,
@@ -141,11 +152,20 @@ app.get("/api/moods", async (req, res) => {
         created_at AS createdAt
       FROM mood_checkins
       ORDER BY datetime(created_at) DESC
-      LIMIT ?
+      LIMIT ? OFFSET ?
     `);
-    const items = statement.all(limit);
+    const items = statement.all(limit, offset);
 
-    return res.json({ ok: true, items });
+    return res.json({
+      ok: true,
+      items,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    });
   } catch (error) {
     return res.status(500).json({
       ok: false,

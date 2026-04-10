@@ -27,13 +27,17 @@ function App() {
   const [history, setHistory] = useState([]);
   const [historyError, setHistoryError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const activeMood = history[0]?.mood || mood;
   const petMessage = PET_TEXT[activeMood] || PET_TEXT.okay;
   const petTrait = PET_TRAITS[activeMood] || PET_TRAITS.okay;
 
-  const loadMoodHistory = async () => {
+  const loadMoodHistory = async (page = 1) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/moods?limit=10`);
+      const response = await fetch(
+        `${API_BASE_URL}/api/moods?limit=10&page=${page}`,
+      );
       const data = await response.json();
 
       if (!response.ok || !data.ok) {
@@ -41,6 +45,8 @@ function App() {
       }
 
       setHistory(data.items || []);
+      setCurrentPage(data.pagination?.page || 1);
+      setTotalPages(data.pagination?.totalPages || 1);
       setHistoryError("");
     } catch (error) {
       setHistoryError(error.message || "Failed to load mood history.");
@@ -60,7 +66,7 @@ function App() {
       }
     };
 
-    checkBackend().then(loadMoodHistory);
+    checkBackend().then(() => loadMoodHistory(1));
   }, []);
 
   const handleSubmit = async (event) => {
@@ -84,7 +90,7 @@ function App() {
 
       setSubmitMessage("Saved mood check-in.");
       setNote("");
-      await loadMoodHistory();
+      await loadMoodHistory(1);
     } catch (error) {
       setSubmitMessage(error.message || "Failed to save mood check-in.");
     } finally {
@@ -171,6 +177,25 @@ function App() {
             ))}
           </ul>
         )}
+        <div className="history-pagination">
+          <button
+            type="button"
+            onClick={() => loadMoodHistory(currentPage - 1)}
+            disabled={currentPage <= 1}
+          >
+            Previous
+          </button>
+          <span>
+            Page {currentPage} / {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => loadMoodHistory(currentPage + 1)}
+            disabled={currentPage >= totalPages}
+          >
+            Next
+          </button>
+        </div>
       </section>
     </main>
   );
