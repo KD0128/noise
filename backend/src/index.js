@@ -131,7 +131,7 @@ app.get("/api/moods", async (req, res) => {
   const requestedPage = Number(req.query.page);
   const limit = Number.isFinite(requestedLimit)
     ? Math.min(Math.max(requestedLimit, 1), 50)
-    : 10;
+    : 5;
   const page = Number.isFinite(requestedPage)
     ? Math.max(Math.floor(requestedPage), 1)
     : 1;
@@ -170,6 +170,63 @@ app.get("/api/moods", async (req, res) => {
     return res.status(500).json({
       ok: false,
       message: "Failed to load mood history.",
+      error: error.message,
+    });
+  }
+});
+
+app.get("/api/moods/trend", async (req, res) => {
+  if (!dbReady || !db) {
+    return res.status(503).json({
+      ok: false,
+      message: "Database not ready. Check backend logs and DATABASE_URL.",
+      dbError: dbInitError,
+    });
+  }
+
+  const requestedDays = Number(req.query.days);
+  const days = Number.isFinite(requestedDays)
+    ? Math.min(Math.max(Math.floor(requestedDays), 1), 30)
+    : 7;
+
+  try {
+    const startDateExpr = `date('now', '-${days - 1} day')`;
+    const statement = db.prepare(`
+      SELECT
+        date(created_at) AS day,
+        SUM(CASE WHEN mood IN ('great', 'good') THEN 1 ELSE 0 END) AS positive,
+        SUM(CASE WHEN mood = 'okay' THEN 1 ELSE 0 END) AS neutral,
+        SUM(CASE WHEN mood IN ('down', 'stressed') THEN 1 ELSE 0 END) AS negative,
+        COUNT(*) AS total
+      FROM mood_checkins
+      WHERE date(created_at) >= ${startDateExpr}
+      GROUP BY day
+      ORDER BY day ASC
+    `);
+    const rows = statement.all();
+
+    const map = new Map(rows.map((row) => [row.day, row]));
+    const items = [];
+    for (let i = days - 1; i >= 0; i -= 1) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const key = date.toISOString().slice(0, 10);
+      const found = map.get(key);
+
+      items.push({
+        day: key,
+        positive: Number(found?.positive || 0),
+        neutral: Number(found?.neutral || 0),
+        negative: Number(found?.negative || 0),
+        total: Number(found?.total || 0),
+      });
+    }
+
+    return res.json({ ok: true, items, days });
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to load mood trend.",
       error: error.message,
     });
   }

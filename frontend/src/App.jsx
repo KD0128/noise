@@ -3,6 +3,7 @@ import "./App.css";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+const PAGE_SIZE = 5;
 const MOOD_OPTIONS = ["great", "good", "okay", "down", "stressed"];
 const PET_TEXT = {
   great: "You sound bright today. I am glowing with you.",
@@ -26,6 +27,8 @@ function App() {
   const [submitMessage, setSubmitMessage] = useState("");
   const [history, setHistory] = useState([]);
   const [historyError, setHistoryError] = useState("");
+  const [trend, setTrend] = useState([]);
+  const [trendError, setTrendError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -36,7 +39,7 @@ function App() {
   const loadMoodHistory = async (page = 1) => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/moods?limit=10&page=${page}`,
+        `${API_BASE_URL}/api/moods?limit=${PAGE_SIZE}&page=${page}`,
       );
       const data = await response.json();
 
@@ -53,6 +56,23 @@ function App() {
     }
   };
 
+  const loadMoodTrend = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/moods/trend?days=7`);
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || `HTTP ${response.status}`);
+      }
+
+      setTrend(data.items || []);
+      setTrendError("");
+    } catch (error) {
+      setTrend([]);
+      setTrendError(error.message || "Failed to load mood trend.");
+    }
+  };
+
   useEffect(() => {
     const checkBackend = async () => {
       try {
@@ -66,7 +86,10 @@ function App() {
       }
     };
 
-    checkBackend().then(() => loadMoodHistory(1));
+    checkBackend().then(() => {
+      loadMoodHistory(1);
+      loadMoodTrend();
+    });
   }, []);
 
   const handleSubmit = async (event) => {
@@ -91,6 +114,7 @@ function App() {
       setSubmitMessage("Saved mood check-in.");
       setNote("");
       await loadMoodHistory(1);
+      await loadMoodTrend();
     } catch (error) {
       setSubmitMessage(error.message || "Failed to save mood check-in.");
     } finally {
@@ -196,6 +220,51 @@ function App() {
             Next
           </button>
         </div>
+      </section>
+
+      <section className="trend-card">
+        <h2>Mood Trend (Last 7 Days)</h2>
+        {trendError && <p className="error-text">{trendError}</p>}
+        {!trendError && trend.length === 0 && <p>No trend data yet.</p>}
+        {!trendError && trend.length > 0 && (
+          <div className="trend-list">
+            {trend.map((item) => {
+              const total = item.total || 1;
+              const positivePct = (item.positive / total) * 100;
+              const neutralPct = (item.neutral / total) * 100;
+              const negativePct = (item.negative / total) * 100;
+
+              return (
+                <div className="trend-row" key={item.day}>
+                  <div className="trend-day">
+                    {new Date(`${item.day}T00:00:00`).toLocaleDateString(
+                      undefined,
+                      {
+                        month: "short",
+                        day: "numeric",
+                      },
+                    )}
+                  </div>
+                  <div className="trend-bar">
+                    <span
+                      className="seg positive"
+                      style={{ width: `${positivePct}%` }}
+                    />
+                    <span
+                      className="seg neutral"
+                      style={{ width: `${neutralPct}%` }}
+                    />
+                    <span
+                      className="seg negative"
+                      style={{ width: `${negativePct}%` }}
+                    />
+                  </div>
+                  <div className="trend-total">{item.total}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
     </main>
   );

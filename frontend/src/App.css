@@ -355,6 +355,69 @@ h1 {
   font-size: 0.92rem;
 }
 
+.trend-card {
+  margin-top: 24px;
+  padding: 22px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid #d2edf0;
+  border-radius: 18px;
+  text-align: left;
+  box-shadow: 0 14px 34px rgba(16, 65, 92, 0.1);
+}
+
+.trend-card h2 {
+  margin-top: 0;
+  color: #18384d;
+}
+
+.trend-list {
+  display: grid;
+  gap: 10px;
+}
+
+.trend-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 40px;
+  align-items: center;
+  gap: 10px;
+}
+
+.trend-day {
+  color: #466376;
+  font-size: 0.92rem;
+}
+
+.trend-total {
+  color: #466376;
+  text-align: right;
+  font-size: 0.9rem;
+}
+
+.trend-bar {
+  height: 14px;
+  background: #e8f2f4;
+  border-radius: 999px;
+  overflow: hidden;
+  display: flex;
+}
+
+.trend-bar .seg {
+  display: block;
+  height: 100%;
+}
+
+.trend-bar .seg.positive {
+  background: #59c7a6;
+}
+
+.trend-bar .seg.neutral {
+  background: #8cc0ef;
+}
+
+.trend-bar .seg.negative {
+  background: #ef9a88;
+}
+
 @keyframes drift {
   0%,
   100% {
