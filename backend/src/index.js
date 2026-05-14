@@ -11,9 +11,155 @@ app.use(cors());
 app.use(express.json());
 
 const VALID_MOODS = ["great", "good", "okay", "down", "stressed"];
+const OPENAI_API_URL = "https://api.openai.com/v1/responses";
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini";
+const FALLBACK_MESSAGES = {
+  great: "You sound bright today. I am glowing with you.",
+  good: "Steady and good. I will stay close.",
+  okay: "Quiet day is okay. I am here with you.",
+  down: "It feels heavy. Let us breathe slowly together.",
+  stressed: "A lot is happening. One step at a time.",
+};
+const PET_TONES = {
+  great: "joy",
+  good: "soft-smile",
+  okay: "neutral",
+  down: "sad",
+  stressed: "anxious",
+};
+
 let dbReady = false;
 let dbInitError = null;
 let db = null;
+
+function buildSupportSignal() {
+  return {
+    shouldPrompt: false,
+    level: "none",
+    message: "",
+  };
+}
+
+function getFallbackPetResponse(mood) {
+  return {
+    tone: PET_TONES[mood] || PET_TONES.okay,
+    message: FALLBACK_MESSAGES[mood] || FALLBACK_MESSAGES.okay,
+  };
+}
+
+function classifyNote(note) {
+  const text = (note || "").toLowerCase();
+
+  if (
+    /kill myself|suicide|suicidal|end my life|hurt myself|self harm|want to die/.test(
+      text
+    )
+  ) {
+    return "crisis";
+  }
+
+  if (/overwhelmed|panic|depressed|failed|hopeless|worthless|can't do this/.test(text)) {
+    return "heavy";
+  }
+
+  return "general";
+}
+
+function buildAiPrompt(mood, note) {
+  const severity = classifyNote(note);
+
+  return [
+    `Mood: ${mood}`,
+    note && note.length > 0 ? `User note: ${note}` : "User note: none",
+    `Severity: ${severity}`,
+    "Reply as a gentle digital pet.",
+    "Use the note more than the mood if they conflict.",
+    "Mention one concrete detail from the user's note when possible.",
+    "Be specific instead of generic.",
+    "Do not mention being an AI.",
+    "Do not use emojis.",
+    severity === "crisis"
+      ? "Write two short sentences that sound calm, serious, and caring. Acknowledge the pain clearly, then tell the user to contact a trusted person or emergency support now. Do not give trivial self-care advice."
+      : severity === "heavy"
+        ? "Write one or two short sentences. First show empathy for the specific situation, then give one small practical next step that fits what happened."
+        : "Write one or two short sentences that feel warm and lightly supportive, with one small next step that fits the user's situation.",
+  ].join("\n");
+}
+
+function extractResponseText(data) {
+  if (typeof data.output_text === "string" && data.output_text.trim()) {
+    return data.output_text.trim();
+  }
+
+  if (!Array.isArray(data.output)) {
+    return "";
+  }
+
+  for (const item of data.output) {
+    if (!Array.isArray(item.content)) {
+      continue;
+    }
+
+    for (const content of item.content) {
+      if (content.type === "output_text" && typeof content.text === "string") {
+        const text = content.text.trim();
+        if (text) {
+          return text;
+        }
+      }
+    }
+  }
+
+  return "";
+}
+
+async function generateAiPetResponse(mood, note) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+
+  try {
+    const response = await fetch(OPENAI_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        input: buildAiPrompt(mood, note),
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("OpenAI request failed:", response.status, errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    const message = extractResponseText(data);
+    if (!message) {
+      console.error("OpenAI returned no text:", JSON.stringify(data));
+      return null;
+    }
+
+    return {
+      tone: PET_TONES[mood] || PET_TONES.okay,
+      message,
+    };
+  } catch (error) {
+    console.error("OpenAI fetch failed:", error.message);
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 async function initializeDatabase() {
   try {
@@ -66,6 +212,8 @@ app.get("/api/health", (req, res) => {
     message: "Noise backend running",
     database: dbReady ? "connected" : "disconnected",
     dbError: dbInitError,
+    ai: process.env.OPENAI_API_KEY ? "configured" : "fallback",
+    model: process.env.OPENAI_API_KEY ? OPENAI_MODEL : null,
   });
 });
 
@@ -73,7 +221,7 @@ app.post("/api/moods", async (req, res) => {
   if (!dbReady || !db) {
     return res.status(503).json({
       ok: false,
-      message: "Database not ready. Check backend logs and DATABASE_URL.",
+      message: "Database not ready.",
       dbError: dbInitError,
     });
   }
@@ -98,16 +246,28 @@ app.post("/api/moods", async (req, res) => {
   const finalNote = trimmedNote.length > 0 ? trimmedNote.slice(0, 1000) : null;
 
   try {
-    const statement = db.prepare(
-      "INSERT INTO mood_checkins (mood, note) VALUES (?, ?)"
-    );
-    const result = statement.run(mood, finalNote);
+    const result = db
+      .prepare("INSERT INTO mood_checkins (mood, note) VALUES (?, ?)")
+      .run(mood, finalNote);
+    const checkinId = Number(result.lastInsertRowid);
+    const petResponse =
+      (await generateAiPetResponse(mood, finalNote)) ||
+      getFallbackPetResponse(mood);
+
+    db.prepare(
+      `
+        INSERT INTO pet_responses (checkin_id, tone, message)
+        VALUES (?, ?, ?)
+      `
+    ).run(checkinId, petResponse.tone, petResponse.message);
 
     return res.status(201).json({
       ok: true,
-      id: Number(result.lastInsertRowid),
+      id: checkinId,
       mood,
       note: finalNote,
+      petResponse,
+      supportSignal: buildSupportSignal(),
     });
   } catch (error) {
     return res.status(500).json({
@@ -122,7 +282,7 @@ app.get("/api/moods", async (req, res) => {
   if (!dbReady || !db) {
     return res.status(503).json({
       ok: false,
-      message: "Database not ready. Check backend logs and DATABASE_URL.",
+      message: "Database not ready.",
       dbError: dbInitError,
     });
   }
@@ -138,27 +298,45 @@ app.get("/api/moods", async (req, res) => {
   const offset = (page - 1) * limit;
 
   try {
-    const countRow = db
-      .prepare("SELECT COUNT(*) AS total FROM mood_checkins")
-      .get();
-    const total = Number(countRow.total || 0);
+    const total = Number(
+      db.prepare("SELECT COUNT(*) AS total FROM mood_checkins").get().total || 0
+    );
     const totalPages = Math.max(1, Math.ceil(total / limit));
 
-    const statement = db.prepare(`
-      SELECT
-        id,
-        mood,
-        note,
-        created_at AS createdAt
-      FROM mood_checkins
-      ORDER BY datetime(created_at) DESC
-      LIMIT ? OFFSET ?
-    `);
-    const items = statement.all(limit, offset);
+    const items = db
+      .prepare(
+        `
+          SELECT
+            mc.id,
+            mc.mood,
+            mc.note,
+            mc.created_at AS createdAt,
+            pr.tone AS petTone,
+            pr.message AS petMessage
+          FROM mood_checkins mc
+          LEFT JOIN pet_responses pr ON pr.checkin_id = mc.id
+          ORDER BY datetime(mc.created_at) DESC, mc.id DESC
+          LIMIT ? OFFSET ?
+        `
+      )
+      .all(limit, offset)
+      .map((item) => ({
+        id: item.id,
+        mood: item.mood,
+        note: item.note,
+        createdAt: item.createdAt,
+        petResponse: item.petMessage
+          ? {
+              tone: item.petTone,
+              message: item.petMessage,
+            }
+          : null,
+      }));
 
     return res.json({
       ok: true,
       items,
+      supportSignal: buildSupportSignal(),
       pagination: {
         page,
         limit,
@@ -179,7 +357,7 @@ app.get("/api/moods/trend", async (req, res) => {
   if (!dbReady || !db) {
     return res.status(503).json({
       ok: false,
-      message: "Database not ready. Check backend logs and DATABASE_URL.",
+      message: "Database not ready.",
       dbError: dbInitError,
     });
   }
@@ -191,7 +369,7 @@ app.get("/api/moods/trend", async (req, res) => {
 
   try {
     const startDateExpr = `date('now', '-${days - 1} day')`;
-    const statement = db.prepare(`
+    const rows = db.prepare(`
       SELECT
         date(created_at) AS day,
         SUM(CASE WHEN mood IN ('great', 'good') THEN 1 ELSE 0 END) AS positive,
@@ -202,8 +380,7 @@ app.get("/api/moods/trend", async (req, res) => {
       WHERE date(created_at) >= ${startDateExpr}
       GROUP BY day
       ORDER BY day ASC
-    `);
-    const rows = statement.all();
+    `).all();
 
     const map = new Map(rows.map((row) => [row.day, row]));
     const items = [];
